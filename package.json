@@ -1,0 +1,21 @@
+{
+    "name": "sfcc-oci-translator",
+    "version": "0.0.1",
+    "description": "CLI Tool that helps you to migrate your Salesforce B2C Commerce Inventory List files to the Salesforce Omnichannel Inventory format, and vice-versa",
+    "bin": {
+        "sfcc-oci-translator": "./cli.js"
+    },
+    "engines": {
+        "node": ">=14.15.4"
+    },
+    "dependencies": {
+        "chalk": "^4.1.0",
+        "commander": "^7.0.0",
+        "line-reader": "^0.4.0",
+        "maybe": "^0.0.2",
+        "ramda": "^0.27.1",
+        "uuid": "^8.3.2",
+        "xml-stream": "^0.4.5",
+        "xml-writer": "^1.7.0"
+    }
+}
