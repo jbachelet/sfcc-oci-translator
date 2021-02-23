@@ -59,7 +59,7 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
             recordId: uuidv4(),
             onHand: parseInt(record.allocation, 10),
             sku: record.$['product-id'],
-            effectiveDate: record['allocation-timestamp'],
+            effectiveDate: record['allocation-timestamp'] || new Date().toISOString(), // Set current date time as default value
             safetyStockCount: safetyStock
         }
 
