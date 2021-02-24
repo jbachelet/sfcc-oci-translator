@@ -25,6 +25,7 @@ program.command('tooci <source> <target>')
     .option('-o, --override', 'Override the target file.')
     .option('-m, --mode <mode>', 'The import mode. Default: UPDATE')
     .option('-s, --safety <safety>', 'The safety stock count applied to all records within the file. Default: 0')
+    .option('-sout, --skipout', 'Skip out-of-stock products.')
     .action((source, target, options) => {
         Promise.resolve().then(() => translator.toOCI(source, target, options))
             .then(({ recordsCount, inventoriesCount }) => {
@@ -48,6 +49,7 @@ program.command('tooci <source> <target>')
  */
 program.command('tosfcc <source> <target>')
     .option('-o, --override', 'Override the target file.')
+    .option('-sout, --skipout', 'Skip out-of-stock products.')
     .action((source, target, options) => {
         Promise.resolve().then(() => translator.toSFCC(source, target, options))
             .then(({ recordsCount, inventoriesCount }) => {

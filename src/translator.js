@@ -29,6 +29,7 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
 
     const importMode = options.mode || 'UPDATE'
     const safetyStock = options.safetyStock || 0
+    const skipOutOfStockProducts = options.skipout || false
     let recordsCount = 0
     let inventoriesCount = 0
 
@@ -49,12 +50,26 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
         inventoriesCount++
 
         if (process.env.DEBUG) {
-            console.debug(`Inventory header "${header.$['list-id']}" written`)
+            console.debug(`Inventory header "${header.$['list-id']}" written.`)
         }
     })
 
     // Write the inventory record
     xmlStream.on('endElement: record', record => {
+        if (!record.allocation) {
+            if (process.env.DEBUG) {
+                console.debug(`Inventory record "${record.$['product-id']}" skipped because of undefined allocation.`)
+            }
+            return
+        }
+
+        if (skipOutOfStockProducts && parseInt(record.allocation, 10) === 0) {
+            if (process.env.DEBUG) {
+                console.debug(`Inventory record "${record.$['product-id']}" skipped because of 0 allocation.`)
+            }
+            return
+        }
+
         const availabilityRecord = {
             recordId: uuidv4(),
             onHand: parseInt(record.allocation, 10),
@@ -74,7 +89,7 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
         recordsCount++
 
         if (process.env.DEBUG) {
-            console.debug(`Inventory record "${record.$['product-id']}" written`)
+            console.debug(`Inventory record "${record.$['product-id']}" written.`)
         }
     })
 
@@ -107,6 +122,7 @@ module.exports.toSFCC = (source, target, options) => new Promise((resolve, rejec
     let recordsCount = 0
     let inventoriesCount = 0
     let inventoryListOpened = false
+    const skipOutOfStockProducts = options.skipout || false
 
     // Open the target file
     const writeStream = fs.createWriteStream(target)
@@ -147,6 +163,20 @@ module.exports.toSFCC = (source, target, options) => new Promise((resolve, rejec
                     inventoryListOpened = true
                     inventoriesCount++
                 } else if (parsedLine.sku) { // On record
+                    if (!parsedLine.onHand) {
+                        if (process.env.DEBUG) {
+                            console.debug(`Inventory record "${parsedLine.sku}" skipped because of undefined allocation.`)
+                        }
+                        return
+                    }
+
+                    if (skipOutOfStockProducts && parsedLine.onHand === 0) {
+                        if (process.env.DEBUG) {
+                            console.debug(`Inventory record "${parsedLine.sku}" skipped because of 0 allocation.`)
+                        }
+                        return
+                    }
+
                     xmlWriterStream
                         .startElement('record').writeAttribute('product-id', parsedLine.sku)
                             .writeElement('allocation', parsedLine.onHand)
@@ -167,6 +197,10 @@ module.exports.toSFCC = (source, target, options) => new Promise((resolve, rejec
                     xmlWriterStream.endElement() // Close record XML node
 
                     recordsCount++
+
+                    if (process.env.DEBUG) {
+                        console.debug(`Inventory record "${parsedLine.sku}" written.`)
+                    }
                 }
             }
 
