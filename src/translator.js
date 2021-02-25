@@ -79,9 +79,14 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
         }
 
         if (record['preorder-backorder-handling'] && record['preorder-backorder-handling'] !== 'none') {
+            let expectedDate = record['in-stock-datetime']
+            if (!expectedDate && record['in-stock-date']) {
+                expectedDate = new Date(record['in-stock-date']).toISOString()
+            }
+
             availabilityRecord.futures = [{
                 quantity: parseInt(record['preorder-backorder-allocation'], 10),
-                expectedDate: record['in-stock-datetime']
+                expectedDate: expectedDate
             }]
         }
 
