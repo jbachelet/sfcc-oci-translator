@@ -1,4 +1,4 @@
-{"locationId":"inventory_m"}
+{"locationId":"inventory_m", "mode": "UPDATE"}
 {"sku":"701644042653M","onHand":100.0,"reserved":0,"atf":100.0,"ato":100.0,"safetyStockCount":0.0,"futures":[],"effectiveDate":"2021-01-13T14:23:35Z"}
 {"sku":"701644154974M","onHand":100.0,"reserved":0,"atf":100.0,"ato":100.0,"safetyStockCount":0.0,"futures":[],"effectiveDate":"2021-01-13T14:23:38Z"}
 {"sku":"701642964124M","onHand":100.0,"reserved":0,"atf":100.0,"ato":100.0,"safetyStockCount":0.0,"futures":[],"effectiveDate":"2021-01-13T14:23:28Z"}
