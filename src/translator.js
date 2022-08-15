@@ -27,11 +27,19 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
         return
     }
 
-    const importMode = options.mode || 'UPDATE'
+    // The mode is assumed to be UPDATE since it's currently the only mode supported.
+    // const importMode = options.mode || 'UPDATE'
+
     const safetyStock = options.safetyStock || 0
     const skipOutOfStockProducts = options.skipout || false
     let recordsCount = 0
     let inventoriesCount = 0
+    let locationId = null
+
+    // create a sku map for high-performance file layout
+    // in order to realize the performance improvement, the file must be constructed
+    // such that the SKUs are grouped together
+    const skuMap = new Map()
 
     // Open the source file
     const readStream = fs.createReadStream(source)
@@ -40,22 +48,23 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
     // Open the target file
     const writeStream = fs.createWriteStream(target)
 
-    // Write the inventory list header
+    // set the location ID
     xmlStream.on('endElement: header', header => {
-        const locationHeader = {
-            location: header.$['list-id'],
-            mode: importMode
-        }
-        writeStream.write(`${JSON.stringify(locationHeader)}\n`, ENCODING)
+        locationId = header.$['list-id'] || null;
         inventoriesCount++
 
         if (process.env.DEBUG) {
-            console.debug(`Inventory header "${header.$['list-id']}" written.`)
+            console.debug(`Inventory location ID: "${locationId}"`)
         }
     })
 
     // Write the inventory record
     xmlStream.on('endElement: record', record => {
+        if (!locationId) {
+            reject(`The "locationId" could not be derived from the SFCC inventory list. Abort...`)
+            return
+        }
+
         if (!record.allocation) {
             if (process.env.DEBUG) {
                 console.debug(`Inventory record "${record.$['product-id']}" skipped because of undefined allocation.`)
@@ -70,12 +79,16 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
             return
         }
 
+        let sku = record.$['product-id']
+        let availabilityRecords = skuMap.get(sku) || [];
+
         const availabilityRecord = {
             recordId: uuidv4(),
             onHand: parseInt(record.allocation, 10),
-            sku: record.$['product-id'],
+            sku: sku,
             effectiveDate: record['allocation-timestamp'] || new Date().toISOString(), // Set current date time as default value
-            safetyStockCount: safetyStock
+            safetyStockCount: safetyStock,
+            locationId: locationId
         }
 
         if (record['preorder-backorder-handling'] && record['preorder-backorder-handling'] !== 'none') {
@@ -90,21 +103,32 @@ module.exports.toOCI = (source, target, options) => new Promise((resolve, reject
             }]
         }
 
-        writeStream.write(`${JSON.stringify(availabilityRecord)}\n`, ENCODING)
+        availabilityRecords.push(availabilityRecord);
+        skuMap.set(sku, availabilityRecords);
         recordsCount++
-
-        if (process.env.DEBUG) {
-            console.debug(`Inventory record "${record.$['product-id']}" written.`)
-        }
     })
 
-    xmlStream.on('end', () => {
+    xmlStream.on('end',  () => {
+        if (skuMap.size > 0) {
+            for (let records of skuMap.values()) {
+                records.forEach((record) => {
+                    writeStream.write(`${JSON.stringify(record)}\n`, ENCODING)
+
+                    if (process.env.DEBUG) {
+                        console.debug(`Inventory record "${record.sku}" for locationId "${locationId}" written.`)
+                    }
+                });
+            }
+        }
         writeStream.end()
+    })
+
+    writeStream.on('finish', () => {
         resolve({
             recordsCount,
             inventoriesCount
         })
-    })
+    });
 })
 /**
  * Translates an OCI inventory file into an SFCC inventory file ready to be importer into SFCC
